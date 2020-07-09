@@ -5,8 +5,7 @@
  */
 
 // NICHOLAS HUANG 1086199 //
-// I think the remove_fake_emoticon function in line 215 was a close attempt //
-// However it caused a segmentation fault so I had to comment it out //
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
