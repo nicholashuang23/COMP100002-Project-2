@@ -1,0 +1,428 @@
+/* Emoticon message cleanser:
+ *
+ * Skeleton code written by Farhana Choudhury and Jianzhong Qi, April 2020
+ *
+ */
+
+// NICHOLAS HUANG 1086199 //
+// I think the remove_fake_emoticon function in line 215 was a close attempt //
+// However it caused a segmentation fault so I had to comment it out //
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+
+#define STAGE_NUM_ONE 1							/* stage numbers */ 
+#define STAGE_NUM_TWO 2
+#define STAGE_NUM_THREE 3
+#define STAGE_NUM_FOUR 4
+#define STAGE_NUM_FIVE 5
+#define STAGE_HEADER "Stage %d\n==========\n"	/* stage header format string */
+
+#define MAX_MSG_LENGTH 280						/* maximum message length */
+#define MAX_NUM_MSGS 100						/* maximum number of messages */
+#define MAX_EMTCN_LENGTH 50						/* maximum emot. line length */
+#define MAX_NUM_EMTCN 50						/* maximum number of emot. */
+#define MSG_STOP "###"                          // end of messages //
+#define COMMA ','
+#define NULLBYTE '\0'
+#define NEWLINE '\n'
+#define CARRIAGE_RET '\r'
+
+typedef char msg_t[MAX_MSG_LENGTH+1];			/* a message */
+typedef char emtcn_t[MAX_EMTCN_LENGTH+1];		/* an emoticon */
+
+/****************************************************************/
+
+/* function prototypes */
+void read_one_msg(msg_t one_msg, int max_len);
+void print_stage_header(int stage_num);
+int count_tokens(msg_t one_msg);
+
+void stage_one(msg_t one_msg);
+void stage_two(msg_t msgs[], int *num_msgs);
+void stage_three(msg_t msgs[], int num_msgs);
+void stage_four(emtcn_t emtcns[], int *num_emtcns);
+void stage_five(msg_t msgs[], int num_msgs, emtcn_t emtcns[], int num_emtcns);
+
+/* add your own function prototypes here */
+void replace_curr_digit(msg_t array, int pos, int length);
+void remove_alnum(msg_t a_msg);
+int read_one_nonalnum_msg(msg_t one_msg, int max_len);
+void remove_extra_commas(msg_t mesage);
+char* find_longest_emoticon(emtcn_t *emoticon, int num_emtcn);
+void remove_emtcn_comma(msg_t emoticon_arr);
+void remove_fake_emoticon(msg_t array,emtcn_t* emtcn_ary, int num_emtcn);
+int find_arr_length(char* array);
+int str_cmp(msg_t arr, emtcn_t* emtcn_arr,int num_emtcn_msgs);
+/****************************************************************/
+
+/* main function controls all the action, do NOT modify this function */
+int
+main(int argc, char *argv[]) {
+	/* to hold all input messages */
+	msg_t msgs[MAX_NUM_MSGS];	
+	/* to hold the number of input messages */
+	int num_msgs = 0;	
+	/* to hold all input emoticons in the dictionary */
+	emtcn_t emtcns[MAX_NUM_EMTCN];
+	/* to hold the number of emoticons in the dictionary */
+	int num_emtcns = 0;	
+	
+	/* stage 1: reading the first message */
+	stage_one(msgs[num_msgs]); 
+	num_msgs++;
+	
+	/* stage 2: removing alphanumeric characters */
+	stage_two(msgs, &num_msgs);
+	
+	/* stage 3: removing extra commas */ 
+	stage_three(msgs, num_msgs);
+
+	/* stage 4: reading the dictionary and finding the longest emoticon */
+	stage_four(emtcns, &num_emtcns);
+	
+	/* stage 5: removing invalid emoticons with the help of the dictionary */
+	stage_five(msgs, num_msgs, emtcns, num_emtcns);
+
+    /* all done; take some rest */
+	return 0;
+}
+
+/* read a line of input into one_msg */
+void
+read_one_msg(msg_t one_msg, int max_len) {
+	int i = 0, c;
+	while (((c = getchar()) != EOF) &&(c != NEWLINE) && (c != CARRIAGE_RET)) {
+		if (i < max_len) {
+			one_msg[i++] = c;
+		} else {
+			printf("Invalid input line, toooooooo long.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	one_msg[i] = '\0';
+}
+
+/* print stage header given stage number */
+void 
+print_stage_header(int stage_num) {
+	printf(STAGE_HEADER, stage_num);
+}
+
+/****************************************************************/
+/* add your code below */
+
+/* scan a message and count the number of tokens (separated by commas) in it */
+int 
+count_tokens(msg_t one_msg) {
+	/* add code here to count the number commas in one_msg,
+	   and return the count + 1 */
+	int number = 0, tokens = 1;
+	while (one_msg[number] != '\0') {
+		if (one_msg[number] == ',') {
+			tokens++;
+        }
+		number++;
+	}
+
+	return tokens;
+}
+
+/* stage 1: reading the first message */
+void 
+stage_one(msg_t one_msg) {
+	/* add code for stage 1 */
+	/* print stage header */
+	print_stage_header(STAGE_NUM_ONE);
+	
+	/* read the first message */
+	read_one_msg(one_msg, MAX_MSG_LENGTH);
+	
+    /* count and print the number of tokens */
+	printf("Number of tokens: %d\n\n", count_tokens(one_msg));
+}
+
+/* stage 2: removing alphanumeric characters */
+void 
+stage_two(msg_t msgs[], int *num_msgs) {
+	//int loop = 0;
+    /* print stage header */
+	print_stage_header(STAGE_NUM_TWO);
+	
+    //remove alphanumeric values from first message in task 1
+    remove_alnum(msgs[0]);
+    printf("%s\n", msgs[0]);
+
+	while (((strcmp(msgs[*num_msgs - 1],MSG_STOP)) != 0) 
+    && *num_msgs < MAX_NUM_MSGS ) {
+		read_one_nonalnum_msg(msgs[*num_msgs], MAX_MSG_LENGTH);
+		
+		if ((strcmp(msgs[*num_msgs],MSG_STOP)) != 0)
+            printf("%s\n", msgs[*num_msgs]);
+		*num_msgs += 1;
+    
+	}	
+    *num_msgs -= 1;	
+    printf("\n");
+        
+}
+/* stage 3: removing extra commas */ 
+void 
+stage_three(msg_t msgs[], int num_msgs) {
+	int number;
+    /* add code for stage 3 */
+	/* print stage header */
+	print_stage_header(STAGE_NUM_THREE);
+    
+    for (number = 0; number < num_msgs; number++){
+        remove_extra_commas(msgs[number]);
+        printf("%s\n", msgs[number]);
+    }
+	
+    printf("\n");
+}
+/* stage 4: reading the dictionary and finding the longest emoticon */ 
+void stage_four(emtcn_t emtcns[], int *num_emtcns) {
+	int indx = 0, result = 0;
+    /* add code for stage 4 */
+	/* print stage header */
+	print_stage_header(STAGE_NUM_FOUR);
+    
+    while (indx < MAX_NUM_EMTCN)  {
+		result = read_one_nonalnum_msg(emtcns[indx], MAX_EMTCN_LENGTH);
+        remove_emtcn_comma(emtcns[indx]);
+        if (result == 1) {
+            *num_emtcns += 1;
+            indx++;
+        } else {
+            indx = MAX_NUM_EMTCN;
+        }
+    }
+    
+    printf("Emoticon total: %d\n", *num_emtcns);
+    printf("Longest: %s\n", find_longest_emoticon(emtcns, *num_emtcns));
+    printf("Length: %d\n", strlen(find_longest_emoticon(emtcns, *num_emtcns)));
+    printf("\n");
+}
+
+/* stage 5: removing invalid emoticons with the help of the dictionary */
+void 
+stage_five(msg_t msgs[], int num_msgs, emtcn_t emtcns[], int num_emtcns) {
+    int number;
+    /* add code for stage 5  */
+	/* print stage header */
+	print_stage_header(STAGE_NUM_FIVE);
+	
+    for (number = 0; number < num_msgs; number++) {
+        //remove_fake_emoticon(msgs[number], emtcns, num_emtcns);
+        printf("%s\n", msgs[number]);
+    }
+
+}
+
+// Removes emoticons in the message that are not in the emoticon dict //
+void remove_fake_emoticon(msg_t array, emtcn_t* emtcn_ary, int num_emtcn) {
+    int i = 0, holder_i = 0, length = 0, initial_i = 0;
+    int holder_size = 5, array_len = 0, found = 0;
+    char* holder;
+    array_len = find_arr_length(array);
+    
+    //Building up holder(holds emtcn from msg) //
+    while(i < array_len) {
+        holder = malloc(holder_size * sizeof(char));
+        if (array[i] != COMMA) {
+            if (holder_i == 0) {
+                initial_i = i;
+            }
+            holder[holder_i] = array[i];
+            length += 1;
+            if (i != array_len - 1) {
+                i += 1;
+                holder_i += 1;
+            }
+            
+            // End of message so compare with emtcn dict //
+            // Removes the emtcn from msg if not found in dict //
+            else {
+                found = str_cmp(holder, emtcn_ary, num_emtcn);
+                if (found == 0) {
+                    while (length > 0) {
+                        replace_curr_digit(array, initial_i, length);
+                        length -= 1;    
+                    }
+                }
+            }
+            if (holder_i == holder_size) {
+               holder_size *= 2;
+                holder = malloc(holder_size * sizeof(char));
+            }
+        // msg reached a comma so holder is a supposed emtcn//
+        // test holder with dict and remove if not in dict//
+        } else {
+            found = str_cmp(holder, emtcn_ary, num_emtcn);
+            if (found == 0) {
+                while (length > 0) {
+                    replace_curr_digit(array, initial_i, length);
+                    length -= 1;   
+                }
+            }
+            i += 1;
+            holder_i = 0;
+            free(holder);
+        }    
+    }
+}
+
+// Finds the length of an array and returns its length//
+int find_arr_length(char* array) {
+    int index = 0, length = 0;
+    
+    while (array[index] != NULLBYTE) {
+        length +=1;
+        index++;
+    }
+    return length;
+}
+
+// Compares two strings to see if they are idential//
+// Returns 1 if identical and 0 if not // 
+int str_cmp(msg_t arr, emtcn_t* emtcn_arr,int num_emtcn_msgs) {
+    int emtcn_i_indx, emtcn_j_indx, found = 0;
+    int arr_len = 0, emtcn_len = 0;
+    arr_len = find_arr_length(arr);
+    
+    for (emtcn_i_indx=0; emtcn_i_indx<num_emtcn_msgs; emtcn_i_indx++) {
+        emtcn_len = find_arr_length(emtcn_arr[emtcn_i_indx]);
+        for (emtcn_j_indx= 0; emtcn_j_indx < emtcn_len; emtcn_j_indx++) {
+            if (emtcn_len != arr_len) {
+                break;
+            }
+            if(arr[emtcn_j_indx] == emtcn_arr[emtcn_i_indx][emtcn_j_indx]) {
+                if (emtcn_j_indx == emtcn_len - 1) {
+                    found = 1;
+                    break;
+                }
+                        
+                } else {
+                    break;
+                }
+        
+        }
+        if (found == 1) {
+            break;
+        }
+    }        
+    return found;
+}
+
+// Reads one message while not including alphanumeric digits//
+// Returns 1 if it read atleast 1 character if not returns 0//
+int
+read_one_nonalnum_msg(msg_t one_msg, int max_len) {
+	int i = 0, c, worked = 0;
+	
+    while (((c = getchar()) != EOF) && (c != NEWLINE) && (c != CARRIAGE_RET)) {
+		if (i < max_len && (!isalnum(c))) {
+			one_msg[i++] = c;
+            worked = 1;
+		} else if (i > max_len) {
+			printf("Invalid input line, toooooooo long.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	one_msg[i] = NULLBYTE;
+    return worked;
+}
+
+// Removes alphanumeric digits from the array//
+void remove_alnum(msg_t a_msg) {
+    int position = 0, string_len = 0;
+    string_len = strlen(a_msg);
+    
+    while (position < MAX_MSG_LENGTH) {
+        if (isalnum(a_msg[position])) {
+            replace_curr_digit(a_msg, position, string_len);
+        }
+        else {
+            position++;
+        }
+        
+    }
+}
+
+// Removes leading, trailing commas and extra consecutive commas 
+void remove_extra_commas(msg_t mesage) {
+    int str_len = 0, index = 0;
+    str_len = strlen(mesage);
+    
+    
+    while (index < str_len) {
+        
+        // Removes leading commas//
+        if (mesage[index] == COMMA && index == 0) {
+            replace_curr_digit(mesage, index, str_len);
+            str_len = strlen(mesage);
+            
+        // Removes consecutive commas//
+        } else if (mesage[index] == COMMA && mesage[index + 1] == COMMA) {
+            replace_curr_digit(mesage, index, str_len);
+            str_len = strlen(mesage);
+            
+        // Removes single trailing comma //
+        } else if (mesage[index] == COMMA && index == str_len - 1) {
+            mesage[index] = NULLBYTE;
+            
+        } else {
+            index++;
+        }
+    }
+}
+
+// Removes all commas from the emoticon 2d array //
+void remove_emtcn_comma(msg_t emoticon_arr) {
+    int index = 0, string_length = 0, end_indx;
+    string_length = strlen(emoticon_arr);
+    
+    remove_extra_commas(emoticon_arr);
+    
+    // Removes any further commas such as single commas//
+    while (index <  string_length) {
+        if (emoticon_arr[index] == COMMA) {
+            for (end_indx = string_length - index; end_indx > 0; end_indx --) {
+                replace_curr_digit(emoticon_arr, index, string_length);
+                string_length = strlen(emoticon_arr);
+            }
+        }
+        
+        else{
+            index++;
+        }
+    }
+}
+
+// Move all digits in the array forward eg arr[1] ->arr[0], arr[2]-> arr[1] //
+void replace_curr_digit(msg_t array, int pos, int length) {
+    int later_pos;
+    
+    for (later_pos = pos + 1;later_pos <= length; later_pos++) {
+        array[later_pos - 1] = array[later_pos];
+    }
+}
+
+// Loop through the array of emoticons, finding the longest one //
+// Returns the index of the longest one //
+char* find_longest_emoticon(emtcn_t* emoticon, int num_emtcn) {
+    int index, curr_longest = 0, curr_longest_index = 0, str_len = 0;
+    
+    for (index = 0; index < num_emtcn; index++) {
+        str_len = strlen(emoticon[index]);
+        if (str_len > curr_longest) {
+            curr_longest = str_len;
+            curr_longest_index = index;
+        }   
+    }
+    return emoticon[curr_longest_index];
+}
+
+// Algorithms are (super) fun//
