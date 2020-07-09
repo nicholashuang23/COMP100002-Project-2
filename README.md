@@ -1,2 +1,1 @@
-# COMP100002-Project-2
-Credit Card Transactions
+This program processes specificcredit cards' transaction history and detect fraudalent transactions
