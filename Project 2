@@ -1,0 +1,362 @@
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<assert.h>
+
+#define STAGE_HEADER1 "=========================Stage %d"
+#define STAGE_HEADER2 "=========================\n"
+#define STAGE_NUM_ONE 1							/* stage numbers */ 
+#define STAGE_NUM_TWO 2
+#define STAGE_NUM_THREE 3
+#define STAGE_NUM_FOUR 4
+#define MAX_CARD_DIGITS 8
+#define WHITESPACE ' '
+#define MSG_STOP "%%%%%%%%%%"
+#define MAX_CREDIT_CARDS 100
+#define TRANSACTION_ID 12
+#define SEPERATOR "             "
+
+// Written by Nicholas Huang, 1086199 //
+// Algorithms are fun! //
+
+typedef struct node node_t;
+
+typedef struct {
+    int transac_day, daily_lim_left;
+    
+} transac_hist_t;
+
+typedef struct {
+    char card_id[MAX_CARD_DIGITS + 1];
+    int transac_lim, daily_lim, curr_date, daily_sum;
+} credit_card_t;
+    
+typedef struct{
+    char transac_id[TRANSACTION_ID + 1], cred_card_id[MAX_CARD_DIGITS + 1];
+    int year, month, day, hour, minute, second, transac_amount;
+} data_t;
+
+struct node {
+	data_t data;
+	node_t *next;
+};
+
+typedef struct {
+	node_t *head;
+	node_t *foot;
+} list_t;
+
+void stage_one(credit_card_t *card);
+void stage_two(credit_card_t *arr, int* num_cards);
+void stage_three(list_t* list);
+int read_one_msg(credit_card_t *first_struct);
+void print_stage_header(int stage_num);
+char* most_trans_lim(credit_card_t array1[], int number_cards);
+double average_daily_lim(credit_card_t array[], int cards);
+list_t *make_empty_list(void);
+list_t *insert_at_foot(list_t* list, data_t *value);
+int read_transaction(data_t *datta);
+void stage_four(list_t *linked_list, credit_card_t array[], int num_cards);
+int is_empty_list(list_t *list);
+data_t get_head(list_t *list);
+list_t *get_tail(list_t *list);
+int my_bsearch(char *string, credit_card_t A[], int n);
+int create_day(int year, int month, int day);
+int transac_lim_breach(int transac_amount, int transac_lim);
+int day_lim_breach(int *curr_date,int day, int *day_sum,int trans,int day_lim);
+void print_trans_fraud(int trans_breach, int day_breach);
+
+int main(int argc, char* argv[]) {
+    int num_credit_cards = 0;
+    list_t *list;
+    credit_card_t A[MAX_CREDIT_CARDS];
+    
+    list = make_empty_list();
+    
+    // Reads one credit card and prints its data //
+    stage_one(&A[num_credit_cards]);
+    num_credit_cards += 1;
+    
+    // Reading and storing the remaining credit cards into array //
+    stage_two(&A[0], &num_credit_cards);
+    
+    // Reads and stores transactions into a linked list //
+    stage_three(list);
+    
+    // Checks for fraudulant transactions //
+    stage_four(list, &A[0], num_credit_cards);
+}
+
+// Reads the first credit card and prints its information //
+void stage_one(credit_card_t *card) {
+    print_stage_header(STAGE_NUM_ONE);
+    read_one_msg(card); 
+    printf("Card ID: %s\n", card->card_id);
+    printf("Daily limit: %d\n", card->daily_lim);
+    printf("Transaction limit: %d\n", card->transac_lim);
+    printf("\n");
+}
+
+// Reads in all remaining credit card info, prints key stats //
+void stage_two(credit_card_t arr[], int * num_cards) {
+    char * temp;
+    
+    print_stage_header(STAGE_NUM_TWO);    
+    
+    while (*num_cards < MAX_CREDIT_CARDS) {
+		if ((read_one_msg(&arr[*num_cards])) == 1) {
+            *num_cards += 1;
+        } else {
+            arr[*num_cards].card_id[0] = '\0';
+            break;
+        }
+    
+    }
+    temp =  most_trans_lim(arr, *num_cards);
+    printf("Number of credit cards: %d\n", *num_cards);
+    printf("Average daily limit: %.2f\n", average_daily_lim(arr, *num_cards));
+    //Not sure why I need two '\n' for new line, passed test cases like this //
+    printf("Card with the largest transaction limit: %s\n", temp);
+    printf("\n");
+    free(temp);
+    temp = NULL;
+}
+
+// Reads in all transactions into a linked lists //
+void stage_three(list_t *linked_list) {
+    data_t *info;
+    
+    print_stage_header(STAGE_NUM_THREE);
+    
+    info = (data_t *)malloc(sizeof(data_t));
+	
+    while ((read_transaction(info)) == 1) {
+		linked_list = insert_at_foot(linked_list, info);
+        printf("%s\n", info->transac_id);
+        info = (data_t *)malloc(sizeof(data_t));
+	}
+
+    printf("\n");
+    free(info);
+    info = NULL;
+}
+
+// Checks for fradulaunt transactions whether over daily, transaction limits //
+void stage_four(list_t *linked_list, credit_card_t array[], int num_cards) {
+    int index, day, transaction_lim_breach, daily_lim_breach,transac, day_lim;
+    int *daily_sum; 
+    int *date;
+    char *credit_card_id;
+    data_t head;
+    
+    print_stage_header(STAGE_NUM_FOUR);
+    
+    while (!is_empty_list(linked_list)) {
+        transaction_lim_breach = 0;
+        daily_lim_breach = 0;
+		
+        head = get_head(linked_list);
+        credit_card_id = head.cred_card_id;
+        index = my_bsearch(credit_card_id, array, num_cards);
+        printf("%s", head.transac_id);
+        
+        if (head.transac_amount > array[index].transac_lim) {
+            transaction_lim_breach = 1;
+        }
+        
+        // Creating shorter variable names to put into function //
+        day = create_day(head.year, head.month, head.day);
+        date = &array[index].curr_date;
+        daily_sum = &array[index].daily_sum;
+        transac = head.transac_amount;
+        day_lim = array[index].daily_lim;
+        daily_lim_breach = day_lim_breach(date,day,daily_sum,transac,day_lim);
+
+        print_trans_fraud(transaction_lim_breach, daily_lim_breach);
+        linked_list = get_tail(linked_list);
+    
+    }
+
+}
+
+// Checks whether a transaction breaches a credit card's daily limit //
+// Returns 1 if the daily limit has been breached, 0 if not //
+int day_lim_breach(int *curr_date,int day,int *day_sum,int trans,int day_lim) {
+    // If first transaction related to cred card or same date of cred card //
+    if ((*curr_date != day && *day_sum == 0 ) || *curr_date == day) {
+        *curr_date = day;
+        *day_sum += trans;
+        if (*day_sum > day_lim) {
+            return 1;
+        }
+    // If new transaction date //    
+    } else if (*curr_date != day) {
+        *day_sum = 0;
+        *curr_date = day;
+        *day_sum += trans;
+        if (*day_sum > day_lim) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Prints whether a transaction has breached transaction or daily limits //
+void print_trans_fraud(int trans_breach, int day_breach) {
+    if (day_breach == 1 && trans_breach == 1) {
+        printf("%s", SEPERATOR);
+        printf("OVER_BOTH_LIMITS\n");
+    } else if (day_breach == 1) {
+        printf("%s", SEPERATOR);
+        printf("OVER_DAILY_LIMIT\n");
+    } else if (trans_breach == 1) {
+        printf("%s", SEPERATOR);
+        printf("OVER_TRANS_LIMIT\n");
+    } else {
+        printf("%s", SEPERATOR);
+        printf("IN_BOTH_LIMITS\n");
+    }
+}
+
+// Create a date without any spaces and returns that date //
+int create_day(int year, int month, int day) {
+    return (year * 10000 + month * 100 + day);
+}
+
+// My implementation of binary search for strings //
+// Returns the index of the array that the credit card id was found //
+int my_bsearch(char *string, credit_card_t A[], int n) {
+    int lo = 0, hi = n, m = 0; 
+    while (lo < hi) {
+        m = (lo + hi)/2; 
+        if ((strcmp(string,A[m].card_id)) < 0) {
+            hi = m;
+        } else if ((strcmp(string,A[m].card_id)) > 0) {
+            lo = m + 1;
+        } else {
+            return m;
+        }
+    }
+    return m;
+}
+
+//Reads one line of the text and returns 1 if something was read in, 0 if not //
+int read_one_msg(credit_card_t* first_struct) {
+	scanf("%s ", first_struct->card_id);
+    if (strcmp(first_struct->card_id, MSG_STOP) == 0)
+        return 0;
+    
+    scanf("%d %d\n", &first_struct->daily_lim, &first_struct->transac_lim);
+    return 1;
+	
+}
+
+// Reads a line of transaction information, returns 1 if completed, 0 if not //
+int read_transaction(data_t *datta) {
+    if ((scanf("%s %s ", datta->transac_id, datta->cred_card_id)) != EOF) {
+        scanf("%d:%d:%d:", &datta->year, &datta->month, &datta->day);
+        scanf("%d:%d:%d ", &datta->hour, &datta->minute, &datta->second);
+        scanf("%d", &datta->transac_amount);
+        return 1;
+    }
+    return 0;
+}
+
+// Calculates and returns the average daily limit of all credit cards //
+double average_daily_lim(credit_card_t array[], int cards) {
+    int i;
+    double avg = 0.0, total = 0;
+    for (i = 0; i < cards; i++) {
+        total += array[i].daily_lim;
+    }
+    avg = total / cards;
+    return avg;
+}
+
+// Calculates the largest transaction limit of all the credit cards //
+// Returns the value of the credit card_id //
+char* most_trans_lim(credit_card_t array1[], int number_cards) {
+    int i, curr_highest = 0, curr_val = 0;
+    char * card_id;
+    card_id = (char *)malloc((MAX_CARD_DIGITS + 1) *sizeof(char));
+    for (i = 0; i < number_cards; i++) {
+        curr_val = array1[i].transac_lim;
+        if (curr_val > curr_highest) {
+            curr_highest = curr_val;
+            strcpy(card_id, array1[i].card_id);
+        }
+    }
+    
+    return card_id;
+}
+
+// Taken from Assignment 1 COMP10002 //
+// Modified as the header had to be split into two lines //
+// Prints out the stage of the assignment //
+void print_stage_header(int stage_num) {
+	printf(STAGE_HEADER1, stage_num);
+    printf(STAGE_HEADER2);
+}
+
+// Taken from listops.c in lecture 6 of COMP10002 //
+// Creates the outline for a linked list //
+list_t *make_empty_list(void) {
+	list_t *list;
+	list = (list_t*)malloc(sizeof(*list));
+	assert(list!=NULL);
+	list->head = list->foot = NULL;
+	return list;
+}
+
+// Taken from listops.c in lecture 6 of COMP10002 //
+// Modified to take a pointer to the data not the data itself//
+// Takes a pointer to data which is assigned into the data portion of a node //
+list_t *insert_at_foot(list_t *list, data_t *value) {
+	node_t *new;
+	new = (node_t*)malloc(sizeof(*new));
+	assert(list!=NULL && new!=NULL);
+	new->data = *value;
+	new->next = NULL;
+	if (list->foot==NULL) {
+		/* this is the first insertion into the list */
+		list->head = list->foot = new;
+	} else {
+		list->foot->next = new;
+		list->foot = new;
+	}
+	return list;
+}
+
+// Taken from listops.c in lecture 6 of COMP10002 //
+// Checks whether the linked list is empty //
+int is_empty_list(list_t *list) {
+	assert(list!=NULL);
+	return list->head==NULL;
+}
+
+// Taken from listops.c in lecture 6 of COMP10002 //
+// Takes the data of the first node of the linked list //
+data_t get_head(list_t *list) {
+	assert(list!=NULL && list->head!=NULL);
+	return list->head->data;
+}
+
+// Taken from listops.c in lecture 6 of COMP10002 //
+// Takes the remaining linked list after the first node //
+list_t *get_tail(list_t *list) {
+	node_t *oldhead;
+	assert(list!=NULL && list->head!=NULL);
+	oldhead = list->head;
+	list->head = list->head->next;
+	if (list->head==NULL) {
+		/* the only list node just got deleted */
+		list->foot = NULL;
+	}
+	free(oldhead);
+	return list;
+}
+
+// Time complexity of my stage four functino is O(nlogm) where n is the //
+// number of transactions and for each transaction we do logm comparison //
+// As binary search halves the relevant array each loop so logm comparisons//
+ 
